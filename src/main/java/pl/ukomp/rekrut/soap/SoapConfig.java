@@ -6,6 +6,7 @@ import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.ws.client.core.WebServiceTemplate;
 
 /**
+ * Klasa konfigurująca wykorzystywana w aplikacji usługę SOAP.
  *
  * @author Jacek
  */

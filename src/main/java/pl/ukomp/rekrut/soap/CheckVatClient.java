@@ -20,6 +20,19 @@ public class CheckVatClient {
     @Autowired
     private WebServiceTemplate webServiceTemplate;
 
+    /**
+     * Sprawdzenie, czy podany numer VAT jest zarejestrowanym aktywnym podmiotem
+     * gospodarczym w UE. Metoda korzysta z usługi SOAP
+     * <a href="http://ec.europa.eu/taxation_customs/vies/checkVatService.wsdl">http://ec.europa.eu/taxation_customs/vies/checkVatService.wsdl</a>
+     *
+     * @param countryCode dwuznakowy kod kraku, np. PL, DE, IT, AU, ...
+     * @param vatNumber prawidłowy dla danego kraju numer VAT
+     * @return CheckVatResult - informacje o statusie VAT
+     * (CheckVatResult.statusVat: true - jest zarejestrowany / false - nie ma)
+     * lub null w przypadku niemożności ustalenia (n.p. błędu usługi SOAP).
+     *
+     * @author Jacek
+     */
     public CheckVatResult verifyVatNumber(String countryCode, String vatNumber) {
         log.debug("verifyVatNumber({},{})", countryCode, vatNumber);
         CheckVat request = new CheckVat();
@@ -32,6 +45,7 @@ public class CheckVatClient {
         } catch (Exception ex) {
             //TODO: rozbudować obsługę błędów
             log.error("SOAP service error: {}: {}", ex.getClass(), ex.getMessage());
+            response = null;
         }
         if (response == null) {
             return null;

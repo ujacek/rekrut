@@ -1,13 +1,13 @@
-package pl.ukomp.rekrut;
+package pl.ukomp.rekrut.dao.model;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.assertTrue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNotEquals;
 import org.junit.Test;
-import pl.ukomp.rekrut.dao.model.Company;
 
 /**
+ * Testy jednostkowe dla Company
  *
  * @author Jacek
  */

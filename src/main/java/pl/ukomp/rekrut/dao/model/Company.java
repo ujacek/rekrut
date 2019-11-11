@@ -19,6 +19,8 @@ import lombok.ToString;
 import lombok.With;
 
 /**
+ * Klasa definiująca podstawowe atrybuty podmiotu gospodarczego, zapisywane w
+ * bazie danych.
  *
  * @author Jacek
  */
@@ -61,7 +63,4 @@ public class Company implements Serializable {
         return new Company();
     }
 
-    public static Company newInstance(Integer id, String name, String countryCode, String vatNumber) {
-        return new Company(id, name, countryCode, vatNumber);
-    }
 }

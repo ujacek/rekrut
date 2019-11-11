@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -34,8 +35,13 @@ public class CompanyController {
     @Autowired
     private CheckVatClient checkVatClient;
 
-//    @Cacheable("companies") //??? jaki ma sens buforowanie takiego zapytania? a z jakim kluczem?
-    @RequestMapping(value = "/", method = RequestMethod.GET, produces = "application/json")
+    private static final String CACHE_KEY_ALL = "'_ALL_'";
+    private static final String CACHE_NAME_ALL = "companies";
+    private static final String CACHE_NAME_COMPANY = "company";
+    private static final String CACHE_NAME_CHECKVAT = "checkVat";
+
+    @Cacheable(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL) //FIXME: ?? jaki ma sens buforowanie takiego zapytania? 
+    @RequestMapping(value = "", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<List<Company>> getAll() {
         log.debug("getAll()");
         Iterable<Company> iterable = companyRepository.findAll();
@@ -43,7 +49,7 @@ public class CompanyController {
         return ResponseEntity.ok(result);
     }
 
-    @Cacheable("company")
+    @Cacheable(cacheNames = CACHE_NAME_COMPANY)
     @RequestMapping(value = "/{id}", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<Company> getById(@PathVariable("id") Integer id) {
         log.debug("getById({})", id);
@@ -52,6 +58,7 @@ public class CompanyController {
         return response;
     }
 
+    @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
     @RequestMapping(value = "/", method = RequestMethod.POST, produces = "application/json")
     public ResponseEntity<Company> insert(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("insert(): {}", company);
@@ -62,7 +69,7 @@ public class CompanyController {
                 || (company.getCountryCode() == null)
                 || (company.getVatNumber() == null)) {
             //TODO: bardziej szczegółowa obsługa braku treści - zwrot statusu i komunikatu o przyczynie błędu
-            return new ResponseEntity(HttpStatus.NO_CONTENT); //??? odpowiedni?
+            return new ResponseEntity(HttpStatus.NO_CONTENT); //FIXME: ?? odpowiedni?
         }
         company.setId(null);
         try {
@@ -74,10 +81,13 @@ public class CompanyController {
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest().path("/{id}")
                 .buildAndExpand(company.getId()).toUri();
-        return ResponseEntity.created(location).body(company);  //??? może zwracać tylko "location" bez company?
+        return ResponseEntity.created(location).body(company);  //FIXME: ?? może zwracać tylko "location" bez company?
     }
 
-    @CacheEvict(value = {"company", "checkVat"}, key = "#company.id")
+    @Caching(evict = {
+        @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#company.id"),
+        @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
+    })
     @RequestMapping(value = "/", method = RequestMethod.PUT)
     public ResponseEntity update(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("update(): {}", company);
@@ -92,35 +102,37 @@ public class CompanyController {
         return new ResponseEntity(HttpStatus.OK);
     }
 
-    @CacheEvict(value = {"company", "checkVat"}, key = "#id")
+    @Caching(evict = {
+        @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#id"),
+        @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
+    })
     @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
     public ResponseEntity delete(@PathVariable("id") Integer id) {
         log.debug("delete({})", id);
         if (!companyRepository.existsById(id)) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND); //???
+            return new ResponseEntity(HttpStatus.NOT_FOUND); //FIXME: ??
         }
         companyRepository.deleteById(id);
         return new ResponseEntity(HttpStatus.OK);
     }
 
-    @Cacheable("checkVat")
+    @Cacheable(cacheNames = CACHE_NAME_CHECKVAT)
     @RequestMapping(value = "/{id}/checkVat", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<CheckVatResult> checkVat(@PathVariable("id") Integer id) {
         log.debug("checkVat({})", id);
         Company company = companyRepository.findById(id).orElse(null);
         if (company == null) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND); //???
+            return new ResponseEntity(HttpStatus.NOT_FOUND); //FIXME: ??
         }
         CheckVatResult result = checkVatClient.verifyVatNumber(company.getCountryCode(),
                                                                company.getVatNumber());
         if (result == null) {
-            return new ResponseEntity(HttpStatus.SERVICE_UNAVAILABLE); //???: co ma zwrócić, gdy weryfikacja nie oddała wyniku?!
+            return new ResponseEntity(HttpStatus.SERVICE_UNAVAILABLE); //FIXME: ??: co ma zwrócić, gdy weryfikacja nie oddała wyniku?!
         }
         return ResponseEntity.of(Optional.of(result));
     }
 
     private static <T> List<T> getListFromIterable(Iterable<T> iterable) {
-        log.debug("getListFromIterable()");
         List<T> list = new ArrayList<>();
         iterable.forEach(list::add);
         return list;

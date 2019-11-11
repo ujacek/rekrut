@@ -6,7 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- *
+ * Wynik sprawdzenia, czy numer identyfikacyjny VAT jest zarejestrowany w Unii Europejskiej.
+ * 
  * @author Jacek
  */
 @AllArgsConstructor
