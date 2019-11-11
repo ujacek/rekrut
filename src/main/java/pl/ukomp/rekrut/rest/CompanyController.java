@@ -12,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -78,7 +77,8 @@ public class CompanyController {
         }
         company.setId(null);
         //TODO: należałoby wpierw sprawdzić, czy taka pozycja już istnieje w bazie 
-        // danych i jezeli jest, to zwrócić HttpStatus.CONFLICT przed próbą dospisania!
+        // danych i jezeli jest, to zwrócić HttpStatus.CONFLICT przed próbą dospisania
+        // albo rzucić wyjątkiem (?), ale nie wiem, jak jest dalej wtedy obsługiwany
         try {
             company = companyRepository.save(company);
 //        } catch (DataIntegrityViolationException ex) {
@@ -91,7 +91,7 @@ public class CompanyController {
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest().path("/{id}")
                 .buildAndExpand(company.getId()).toUri();
-        return ResponseEntity.created(location).body(company);  //FIXME: ?? może zwracać tylko "location" bez company?
+        return ResponseEntity.created(location).body(company);  //FIXME: ?? a może zwracać tylko "location" bez company?
     }
 
 
