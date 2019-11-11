@@ -20,6 +20,7 @@ public class CheckVatClient {
     @Autowired
     private WebServiceTemplate webServiceTemplate;
 
+
     /**
      * Sprawdzenie, czy podany numer VAT jest zarejestrowanym aktywnym podmiotem
      * gospodarczym w UE. Metoda korzysta z usługi SOAP
@@ -50,11 +51,11 @@ public class CheckVatClient {
         if (response == null) {
             return null;
         }
-        log.debug("Country code : {}", response.getCountryCode());
-        log.debug("VAT number : {}", response.getVatNumber());
-        log.debug("Is valid : {}", response.isValid());
-        log.debug("Name : {}", response.getName().getValue());
-        log.debug("Address : {}", response.getAddress().getValue());
+        log.debug("Code = {}, VAT = {}, Status = {}, Name = {}, Address = {}", response.getCountryCode(),
+                  response.getVatNumber(),
+                  response.isValid(),
+                  response.getName().getValue(),
+                  response.getAddress().getValue());
         return new CheckVatResult(response.isValid());
     }
 

@@ -22,6 +22,7 @@ public class SoapConfig {
         return marshaller;
     }
 
+
     @Bean
     public WebServiceTemplate webServiceTemplate() {
         WebServiceTemplate webServiceTemplate = new WebServiceTemplate();

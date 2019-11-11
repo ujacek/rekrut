@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -40,14 +41,16 @@ public class CompanyController {
     private static final String CACHE_NAME_COMPANY = "company";
     private static final String CACHE_NAME_CHECKVAT = "checkVat";
 
+
     @Cacheable(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL) //FIXME: ?? jaki ma sens buforowanie takiego zapytania? 
     @RequestMapping(value = "", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<List<Company>> getAll() {
         log.debug("getAll()");
-        Iterable<Company> iterable = companyRepository.findAll();
+        Iterable<Company> iterable = companyRepository.findAll(); //FIXME: a może stronicowanie?
         List<Company> result = getListFromIterable(iterable);
         return ResponseEntity.ok(result);
     }
+
 
     @Cacheable(cacheNames = CACHE_NAME_COMPANY)
     @RequestMapping(value = "/{id}", method = RequestMethod.GET, produces = "application/json")
@@ -58,25 +61,32 @@ public class CompanyController {
         return response;
     }
 
+
     @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
-    @RequestMapping(value = "/", method = RequestMethod.POST, produces = "application/json")
+    @RequestMapping(value = "", method = RequestMethod.POST, produces = "application/json")
     public ResponseEntity<Company> insert(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("insert(): {}", company);
         if (result.hasErrors()) {
             return new ResponseEntity(HttpStatus.BAD_REQUEST);
         }
-        if ((company.getName() == null)
+        if ((company == null)
+                || (company.getName() == null)
                 || (company.getCountryCode() == null)
                 || (company.getVatNumber() == null)) {
             //TODO: bardziej szczegółowa obsługa braku treści - zwrot statusu i komunikatu o przyczynie błędu
-            return new ResponseEntity(HttpStatus.NO_CONTENT); //FIXME: ?? odpowiedni?
+            return new ResponseEntity(HttpStatus.BAD_REQUEST); //FIXME: ?? odpowiedni?
         }
         company.setId(null);
+        //TODO: należałoby wpierw sprawdzić, czy taka pozycja już istnieje w bazie 
+        // danych i jezeli jest, to zwrócić HttpStatus.CONFLICT przed próbą dospisania!
         try {
             company = companyRepository.save(company);
+//        } catch (DataIntegrityViolationException ex) {
+//            log.error("SAVE error: {}: {}", ex.getClass(), ex.getMessage());
+//            return new ResponseEntity(HttpStatus.???);
         } catch (Exception ex) {
             log.error("SAVE error: {}: {}", ex.getClass(), ex.getMessage());
-            return new ResponseEntity(HttpStatus.CONFLICT);
+            return new ResponseEntity(HttpStatus.CONFLICT); //FIXME: ?? odpowiedni?
         }
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest().path("/{id}")
@@ -84,11 +94,12 @@ public class CompanyController {
         return ResponseEntity.created(location).body(company);  //FIXME: ?? może zwracać tylko "location" bez company?
     }
 
+
     @Caching(evict = {
         @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#company.id"),
         @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
     })
-    @RequestMapping(value = "/", method = RequestMethod.PUT)
+    @RequestMapping(value = "", method = RequestMethod.PUT)
     public ResponseEntity update(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("update(): {}", company);
         if (result.hasErrors()) {
@@ -102,6 +113,7 @@ public class CompanyController {
         return new ResponseEntity(HttpStatus.OK);
     }
 
+
     @Caching(evict = {
         @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#id"),
         @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
@@ -113,8 +125,9 @@ public class CompanyController {
             return new ResponseEntity(HttpStatus.NOT_FOUND); //FIXME: ??
         }
         companyRepository.deleteById(id);
-        return new ResponseEntity(HttpStatus.OK);
+        return new ResponseEntity(HttpStatus.NO_CONTENT);   //zwracane dla wykonanego DELETE!
     }
+
 
     @Cacheable(cacheNames = CACHE_NAME_CHECKVAT)
     @RequestMapping(value = "/{id}/checkVat", method = RequestMethod.GET, produces = "application/json")
@@ -131,6 +144,7 @@ public class CompanyController {
         }
         return ResponseEntity.of(Optional.of(result));
     }
+
 
     private static <T> List<T> getListFromIterable(Iterable<T> iterable) {
         List<T> list = new ArrayList<>();
