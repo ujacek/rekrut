@@ -3,7 +3,6 @@ package pl.ukomp.rekrut.rest;
 import java.net.URI;
 import pl.ukomp.rekrut.soap.CheckVatResult;
 import pl.ukomp.rekrut.dao.model.Company;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.validation.Valid;
@@ -12,6 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import pl.ukomp.rekrut.dao.repo.CompanyRepository;
@@ -35,19 +38,30 @@ public class CompanyController {
     @Autowired
     private CheckVatClient checkVatClient;
 
-    private static final String CACHE_KEY_ALL = "'_ALL_'";
     private static final String CACHE_NAME_ALL = "companies";
     private static final String CACHE_NAME_COMPANY = "company";
     private static final String CACHE_NAME_CHECKVAT = "checkVat";
 
 
-    @Cacheable(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL) //FIXME: ?? jaki ma sens buforowanie takiego zapytania? 
+    @Cacheable(cacheNames = CACHE_NAME_ALL)
     @RequestMapping(value = "", method = RequestMethod.GET, produces = "application/json")
-    public ResponseEntity<List<Company>> getAll() {
-        log.debug("getAll()");
-        Iterable<Company> iterable = companyRepository.findAll(); //FIXME: a może stronicowanie?
-        List<Company> result = getListFromIterable(iterable);
+    public ResponseEntity<List<Company>> getAll(@RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
+                                                @RequestParam(name = "size", required = false) Integer size) {
+        log.debug("getAll({},{})", page, size);
+        Pageable pageRequest = getPageable(page, size);
+        log.debug("efektywny pageRequest = {}", pageRequest);
+        Page<Company> pageCompany = companyRepository.findAll(pageRequest);
+        List<Company> result = pageCompany.getContent();
         return ResponseEntity.ok(result);
+    }
+
+
+    private static Pageable getPageable(Integer page, Integer size) {
+        if (size == null) {
+            return Pageable.unpaged();
+        } else {
+            return PageRequest.of(page, size);
+        }
     }
 
 
@@ -61,7 +75,7 @@ public class CompanyController {
     }
 
 
-    @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
+    @CacheEvict(cacheNames = CACHE_NAME_ALL, allEntries = true)
     @RequestMapping(value = "", method = RequestMethod.POST, produces = "application/json")
     public ResponseEntity<Company> insert(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("insert(): {}", company);
@@ -91,7 +105,7 @@ public class CompanyController {
 
     @Caching(evict = {
         @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#company.id"),
-        @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
+        @CacheEvict(cacheNames = CACHE_NAME_ALL, allEntries = true)
     })
     @RequestMapping(value = "", method = RequestMethod.PUT)
     public ResponseEntity update(@RequestBody @Valid Company company, BindingResult result) {
@@ -110,7 +124,7 @@ public class CompanyController {
 
     @Caching(evict = {
         @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#id"),
-        @CacheEvict(cacheNames = CACHE_NAME_ALL, key = CACHE_KEY_ALL /*, allEntries = true*/)
+        @CacheEvict(cacheNames = CACHE_NAME_ALL, allEntries = true)
     })
     @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
     public ResponseEntity delete(@PathVariable("id") Integer id) {
@@ -137,13 +151,6 @@ public class CompanyController {
             return new ResponseEntity(HttpStatus.SERVICE_UNAVAILABLE); //FIXME: ??: co ma zwrócić, gdy weryfikacja nie oddała wyniku?!
         }
         return ResponseEntity.of(Optional.of(result));
-    }
-
-
-    private static <T> List<T> getListFromIterable(Iterable<T> iterable) {
-        List<T> list = new ArrayList<>();
-        iterable.forEach(list::add);
-        return list;
     }
 
 }
