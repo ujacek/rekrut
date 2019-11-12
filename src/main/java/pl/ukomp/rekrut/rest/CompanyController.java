@@ -75,19 +75,13 @@ public class CompanyController {
             //TODO: bardziej szczegółowa obsługa braku treści - zwrot statusu i komunikatu o przyczynie błędu
             return new ResponseEntity(HttpStatus.BAD_REQUEST); //FIXME: ?? odpowiedni?
         }
-        company.setId(null);
-        //TODO: należałoby wpierw sprawdzić, czy taka pozycja już istnieje w bazie 
-        // danych i jezeli jest, to zwrócić HttpStatus.CONFLICT przed próbą dospisania
-        // albo rzucić wyjątkiem (?), ale nie wiem, jak jest dalej wtedy obsługiwany
-        try {
-            company = companyRepository.save(company);
-//        } catch (DataIntegrityViolationException ex) {
-//            log.error("SAVE error: {}: {}", ex.getClass(), ex.getMessage());
-//            return new ResponseEntity(HttpStatus.???);
-        } catch (Exception ex) {
-            log.error("SAVE error: {}: {}", ex.getClass(), ex.getMessage());
-            return new ResponseEntity(HttpStatus.CONFLICT); //FIXME: ?? odpowiedni?
+        Optional<Company> found = companyRepository.findByCountryCodeAndVatNumber(company.getCountryCode(), company.getVatNumber());
+        if (found.isPresent()) {
+            log.debug("Istnieje juz {}!", found.get());
+            return new ResponseEntity(HttpStatus.CONFLICT);
         }
+        company.setId(null);
+        company = companyRepository.save(company);
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest().path("/{id}")
                 .buildAndExpand(company.getId()).toUri();
