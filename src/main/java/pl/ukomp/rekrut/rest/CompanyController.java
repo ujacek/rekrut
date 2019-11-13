@@ -17,10 +17,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -44,7 +47,7 @@ public class CompanyController {
 
 
     @Cacheable(cacheNames = CACHE_NAME_ALL)
-    @RequestMapping(value = "", method = RequestMethod.GET, produces = "application/json")
+    @GetMapping(value = "", produces = "application/json")
     public ResponseEntity<List<Company>> getAll(@RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
                                                 @RequestParam(name = "size", required = false) Integer size) {
         log.debug("getAll({},{})", page, size);
@@ -66,7 +69,7 @@ public class CompanyController {
 
 
     @Cacheable(cacheNames = CACHE_NAME_COMPANY)
-    @RequestMapping(value = "/{id}", method = RequestMethod.GET, produces = "application/json")
+    @GetMapping(value = "/{id}", produces = "application/json")
     public ResponseEntity<Company> getById(@PathVariable("id") Integer id) {
         log.debug("getById({})", id);
         Optional<Company> result = companyRepository.findById(id);
@@ -76,7 +79,7 @@ public class CompanyController {
 
 
     @CacheEvict(cacheNames = CACHE_NAME_ALL, allEntries = true)
-    @RequestMapping(value = "", method = RequestMethod.POST, produces = "application/json")
+    @PostMapping(value = "", produces = "application/json")
     public ResponseEntity<Company> insert(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("insert(): {}", company);
         if (result.hasErrors()) {
@@ -107,7 +110,7 @@ public class CompanyController {
         @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#company.id"),
         @CacheEvict(cacheNames = CACHE_NAME_ALL, allEntries = true)
     })
-    @RequestMapping(value = "", method = RequestMethod.PUT)
+    @PutMapping(value = "")
     public ResponseEntity update(@RequestBody @Valid Company company, BindingResult result) {
         log.debug("update(): {}", company);
         if (result.hasErrors()) {
@@ -126,7 +129,7 @@ public class CompanyController {
         @CacheEvict(cacheNames = {CACHE_NAME_COMPANY, CACHE_NAME_CHECKVAT}, key = "#id"),
         @CacheEvict(cacheNames = CACHE_NAME_ALL, allEntries = true)
     })
-    @RequestMapping(value = "/{id}", method = RequestMethod.DELETE)
+    @DeleteMapping(value = "/{id}")
     public ResponseEntity delete(@PathVariable("id") Integer id) {
         log.debug("delete({})", id);
         if (!companyRepository.existsById(id)) {
@@ -138,7 +141,7 @@ public class CompanyController {
 
 
     @Cacheable(cacheNames = CACHE_NAME_CHECKVAT)
-    @RequestMapping(value = "/{id}/checkVat", method = RequestMethod.GET, produces = "application/json")
+    @GetMapping(value = "/{id}/checkVat", produces = "application/json")
     public ResponseEntity<CheckVatResult> checkVat(@PathVariable("id") Integer id) {
         log.debug("checkVat({})", id);
         Company company = companyRepository.findById(id).orElse(null);
