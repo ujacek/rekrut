@@ -45,11 +45,8 @@ public class CheckVatClient {
             response = (CheckVatResponse) webServiceTemplate.marshalSendAndReceive(eutaxUrl, request);
         } catch (Exception ex) {
             //TODO: rozbudować obsługę błędów
-            log.error("SOAP service error: {}: {}", ex.getClass(), ex.getMessage());
-            response = null;
-        }
-        if (response == null) {
-            return null;
+            log.error("ERROR (SOAP): {}: {}", ex.getClass(), ex.getMessage());
+            throw ex; //FIXME: prostackie! powinna być własna klasa wyjatku
         }
         log.debug("Code = {}, VAT = {}, Status = {}, Name = {}, Address = {}", response.getCountryCode(),
                   response.getVatNumber(),

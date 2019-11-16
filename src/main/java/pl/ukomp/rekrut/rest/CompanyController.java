@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import pl.ukomp.rekrut.dao.repo.CompanyRepository;
 import pl.ukomp.rekrut.soap.CheckVatClient;
@@ -51,20 +52,16 @@ public class CompanyController {
     public ResponseEntity<List<Company>> getAll(@RequestParam(name = "page", required = false, defaultValue = "0") Integer page,
                                                 @RequestParam(name = "size", required = false) Integer size) {
         log.debug("getAll({},{})", page, size);
-        Pageable pageRequest = getPageable(page, size);
-        log.debug("efektywny pageRequest = {}", pageRequest);
+        Pageable pageRequest;
+        try {
+            pageRequest = getPageable(page, size);
+        } catch (Exception ex) {
+            log.debug("ERROR (REST): {}", ex.getMessage());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getLocalizedMessage());
+        }
         Page<Company> pageCompany = companyRepository.findAll(pageRequest);
         List<Company> result = pageCompany.getContent();
         return ResponseEntity.ok(result);
-    }
-
-
-    private static Pageable getPageable(Integer page, Integer size) {
-        if (size == null) {
-            return Pageable.unpaged();
-        } else {
-            return PageRequest.of(page, size);
-        }
     }
 
 
@@ -133,10 +130,10 @@ public class CompanyController {
     public ResponseEntity delete(@PathVariable("id") Integer id) {
         log.debug("delete({})", id);
         if (!companyRepository.existsById(id)) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND); //FIXME: ??
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
         companyRepository.deleteById(id);
-        return new ResponseEntity(HttpStatus.NO_CONTENT);   //zwracane dla wykonanego DELETE!
+        return new ResponseEntity(HttpStatus.NO_CONTENT);   //status zwracany dla wykonanego DELETE!
     }
 
 
@@ -146,14 +143,27 @@ public class CompanyController {
         log.debug("checkVat({})", id);
         Company company = companyRepository.findById(id).orElse(null);
         if (company == null) {
-            return new ResponseEntity(HttpStatus.NOT_FOUND); //FIXME: ??
+            return new ResponseEntity(HttpStatus.NOT_FOUND);
         }
-        CheckVatResult result = checkVatClient.verifyVatNumber(company.getCountryCode(),
-                                                               company.getVatNumber());
-        if (result == null) {
-            return new ResponseEntity(HttpStatus.SERVICE_UNAVAILABLE); //FIXME: ??: co ma zwrócić, gdy weryfikacja nie oddała wyniku?!
+        try {
+            CheckVatResult result = checkVatClient.verifyVatNumber(company.getCountryCode(),
+                                                                   company.getVatNumber());
+            return ResponseEntity.of(Optional.of(result));
+        } catch (Exception ex) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, ex.getLocalizedMessage());
         }
-        return ResponseEntity.of(Optional.of(result));
+    }
+
+
+    private static Pageable getPageable(Integer page, Integer size) {
+        Pageable result;
+        if (size == null) {
+            result = Pageable.unpaged();
+        } else {
+            result = PageRequest.of((page != null ? page : 0), size);
+        }
+        log.debug("getPageable({},{}) --> {}", page, size, result);
+        return result;
     }
 
 }
